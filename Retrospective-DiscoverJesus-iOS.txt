@@ -1,0 +1,42 @@
+Discover Jesus iPhone App Retrospective
+Date: November 1, 2026
+
+Overall Score: 72/100
+
+Items to Keep (Most Ideal)
+- Dynamic renderer approach using component type + legacyType fallback.
+- Split detail screen showing rendered output and raw JSON.
+- Strong debugging UX: clear error messages, failed API URL display, and copy action.
+- Graceful fallback for unknown components ({type}) to avoid render crashes.
+- Incremental support for core component types (Button, Header, Text, List, NavBar/NBButton, BibleVerse, Image).
+- Flexible navigation resolution using action.pageId and legacy target slug fallback.
+
+Recommended Changes to Reach 100/100
+1) Architecture and Maintainability
+- Split ContentView.swift into focused files/modules (models, API client, renderer, component views).
+- Introduce a normalized component model (enum-based mapping layer) to reduce branching complexity.
+- Add a design system layer (typography + spacing tokens) to keep rendering consistent as components expand.
+
+2) Reliability and Quality
+- Add unit tests for decoding every component shape and legacy mapping path.
+- Add renderer tests for each supported component and unknown fallback behavior.
+- Add navigation resolution tests for action.pageId and slug fallback.
+- Add error-path tests (4xx/5xx, malformed JSON, empty payloads).
+
+3) Networking and Data Flow
+- Move networking to a dedicated ApiClient with typed errors and backend problem-details parsing.
+- Add timeout/retry strategy and optional in-memory response caching.
+- Make locale user-selectable (instead of fixed en-US), with optional fallback strategy.
+
+4) UX and Accessibility
+- Improve accessibility labels and VoiceOver support for dynamic components.
+- Use dynamic, geometry-based margins for BibleVerse to enforce true percentage-based spacing.
+- Improve image behavior: richer placeholders, failure affordances, and optional caption style controls.
+
+5) Performance and Scalability
+- Precompute page lookup maps for faster target resolution.
+- Reduce repeated filtering/scanning across sections in large pages.
+- Add telemetry for unknown component types and render failures to accelerate backend/frontend alignment.
+
+Summary
+The app is already a strong, functional content renderer and debugging tool. The biggest gains to reach 100 come from modularization, test coverage, stronger data contracts, and polish around accessibility, performance, and UX consistency.
