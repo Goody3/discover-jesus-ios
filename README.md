@@ -34,5 +34,4 @@ Pipeline checks:
 - Build the app and run tests on an automatically selected iOS simulator.
 - Fail on any build or test failure.
 - Scan dependencies for known vulnerabilities:
-  - pull requests: GitHub dependency review
-  - pushes: OSV scanner recursive manifest scan
+  - pull requests and pushes: OSV scanner recursive manifest scan

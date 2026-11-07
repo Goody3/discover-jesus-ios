@@ -74,10 +74,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Dependency review (pull requests)
-        if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@v4
-
-      - name: OSV scan manifests (pushes)
-        if: github.event_name == 'push'
+      - name: OSV scan manifests
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
         uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
