@@ -209,6 +209,7 @@ struct ContentView: View {
 struct PageJSONView: View {
     let page: PageSummary
     let allPages: [PageSummary]
+    let loader = PageContentLoader()
 
     @State private var isLoading = false
     @State private var jsonText = ""
@@ -327,17 +328,18 @@ struct PageJSONView: View {
 
     @ViewBuilder
     private func renderedSectionView(_ section: LocalizedPageSection) -> some View {
-        let normalizedType = section.type.lowercased()
-        let normalizedLegacyType = section.source?.legacyType?.lowercased()
-        let effectiveType = normalizedLegacyType ?? normalizedType
+        let hasNavBarSection = (renderedPage?.sections ?? []).contains {
+            PageContentLogic.sectionKind(for: $0, hasNavBarSection: false) == .navBar
+        }
+        let sectionKind = PageContentLogic.sectionKind(for: section, hasNavBarSection: hasNavBarSection)
 
-        if isNavBarSection(section, effectiveType: effectiveType) {
+        if sectionKind == .navBar {
             navBarView(for: section)
-        } else if shouldSuppressStandaloneNBButton(effectiveType: effectiveType) {
+        } else if sectionKind == .suppressedNBButton {
             EmptyView()
-        } else if isListSection(section, effectiveType: effectiveType) {
+        } else if sectionKind == .list {
             listView(for: section)
-        } else if effectiveType == "button" || effectiveType == "nbbutton" {
+        } else if sectionKind == .button {
             let buttonText = section.source?.legacyProps?.text ?? section.value ?? "Button"
 
             if let destination = targetPage(for: section) {
@@ -353,17 +355,17 @@ struct PageJSONView: View {
                     .buttonStyle(.bordered)
                     .disabled(true)
             }
-        } else if effectiveType == "header" {
+        } else if sectionKind == .header {
             let style = headerStyle(for: section)
             Text(sectionDisplayText(section, fallback: "(empty header)"))
                 .font(style.font)
                 .fontWeight(style.weight)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        } else if effectiveType == "bibleverse" {
+        } else if sectionKind == .bibleVerse {
             bibleVerseView(for: section)
-        } else if effectiveType == "media" || normalizedType == "image" || effectiveType == "image" {
+        } else if sectionKind == .image {
             imageView(for: section)
-        } else if effectiveType == "text" {
+        } else if sectionKind == .text {
             Text(sectionDisplayText(section, fallback: "(empty text)"))
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
@@ -502,21 +504,6 @@ struct PageJSONView: View {
         return trimmed.isEmpty ? "Button" : trimmed
     }
 
-    private func isNavBarSection(_ section: LocalizedPageSection, effectiveType: String) -> Bool {
-        if section.style?.role?.caseInsensitiveCompare("navigation") == .orderedSame {
-            return true
-        }
-
-        return effectiveType == "navbar"
-    }
-
-    private func shouldSuppressStandaloneNBButton(effectiveType: String) -> Bool {
-        effectiveType == "nbbutton" && renderedPage?.sections.contains(where: {
-            ($0.source?.legacyType?.caseInsensitiveCompare("NavBar") == .orderedSame)
-                || ($0.style?.role?.caseInsensitiveCompare("navigation") == .orderedSame)
-        }) == true
-    }
-
     private func bibleVerseView(for section: LocalizedPageSection) -> some View {
         let verseText = sectionDisplayText(section, fallback: "(verse text unavailable)")
         let referenceText = verseReferenceText(for: section)
@@ -617,14 +604,6 @@ struct PageJSONView: View {
         }
     }
 
-    private func isListSection(_ section: LocalizedPageSection, effectiveType: String) -> Bool {
-        if section.style?.role?.caseInsensitiveCompare("list") == .orderedSame {
-            return true
-        }
-
-        return effectiveType == "list"
-    }
-
     private func isLegacyOrderedList(_ section: LocalizedPageSection) -> Bool {
         let raw = section.source?.legacyProps?.headerAttribute ?? section.headerAttribute
         let normalized = raw?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -632,17 +611,7 @@ struct PageJSONView: View {
     }
 
     private func targetPage(for section: LocalizedPageSection) -> PageSummary? {
-        if let pageId = section.action?.pageId,
-           let byId = allPages.first(where: { $0.publicId == pageId }) {
-            return byId
-        }
-
-        if let targetSlug = section.source?.legacyProps?.target,
-           let bySlug = allPages.first(where: { $0.slug.caseInsensitiveCompare(targetSlug) == .orderedSame }) {
-            return bySlug
-        }
-
-        return nil
+        PageContentLogic.targetPage(for: section, allPages: allPages)
     }
 
     private func loadPageJSON() async {
@@ -653,26 +622,11 @@ struct PageJSONView: View {
 
         defer { isLoading = false }
 
-        do {
-            let requestURL = endpoint
-            let (data, response) = try await URLSession.shared.data(from: requestURL)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  200 ..< 300 ~= httpResponse.statusCode else {
-                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-                failedRequestURL = requestURL.absoluteString
-                errorMessage = "Backend returned an unexpected response (status \(statusCode))."
-                return
-            }
-
-            let object = try JSONSerialization.jsonObject(with: data)
-            let prettyData = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
-            jsonText = String(decoding: prettyData, as: UTF8.self)
-
-            renderedPage = try JSONDecoder().decode(LocalizedPageContent.self, from: data)
-        } catch {
-            failedRequestURL = endpoint.absoluteString
-            errorMessage = "Unable to load page JSON: \(error.localizedDescription)"
-        }
+        let result = await loader.load(from: endpoint)
+        jsonText = result.jsonText
+        renderedPage = result.renderedPage
+        errorMessage = result.errorMessage
+        failedRequestURL = result.failedRequestURL
     }
 }
 

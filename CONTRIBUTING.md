@@ -49,6 +49,16 @@ Use clear, descriptive commit messages:
 - Include a summary of changes
 - Include any schema version updates
 
+### Branch protection expectations
+
+For `dev` and `main`, configure branch protection so pull requests require:
+
+- GitHub Actions workflow `iOS CI` to pass
+- Job `Build and unit test` to pass
+- Job `Dependency vulnerability scan` to pass
+- At least one approving review
+- Conversation resolution before merge
+
 ## AI Development Rules
 
 AI agents (ChatGPT, GROC, etc.) should follow:
@@ -61,4 +71,3 @@ AI agents (ChatGPT, GROC, etc.) should follow:
 - Always update documentation when schemas change
 
 ## Folder Structure
-
