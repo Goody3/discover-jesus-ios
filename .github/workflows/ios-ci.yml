@@ -1,0 +1,85 @@
+name: iOS CI
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  push:
+    branches:
+      - dev
+      - main
+
+concurrency:
+  group: ios-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and unit test
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Show toolchain versions
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Resolve simulator destination
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          DESTINATIONS="$(xcodebuild -workspace DiscoverJesusPlatform.xcworkspace -scheme DiscoverJesus -showdestinations 2>/dev/null || true)"
+          SIMULATOR_ID="$(printf '%s\n' "$DESTINATIONS" | sed -n 's/.*platform:iOS Simulator, id:\([^,}]*\).*/\1/p' | head -n 1 | tr -d ' ')"
+
+          if [[ -z "$SIMULATOR_ID" ]]; then
+            echo "No eligible iOS simulator destination found for scheme DiscoverJesus."
+            echo "$DESTINATIONS"
+            exit 1
+          fi
+
+          echo "SIMULATOR_ID=$SIMULATOR_ID" >> "$GITHUB_ENV"
+
+      - name: Build and run tests (no signing required)
+        run: |
+          set -euo pipefail
+
+          xcodebuild \
+            -workspace DiscoverJesusPlatform.xcworkspace \
+            -scheme DiscoverJesus \
+            -destination "id=${SIMULATOR_ID}" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build test
+
+  dependency-scan:
+    name: Dependency vulnerability scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Dependency review (pull requests)
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+
+      - name: OSV scan manifests (pushes)
+        if: github.event_name == 'push'
+        uses: google/osv-scanner-action@v2
+        with:
+          scan-args: --recursive .
