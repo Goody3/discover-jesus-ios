@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
 
           DESTINATIONS="$(xcodebuild -workspace DiscoverJesusPlatform.xcworkspace -scheme DiscoverJesus -showdestinations 2>/dev/null || true)"
-          SIMULATOR_ID="$(printf '%s\n' "$DESTINATIONS" | sed -n 's/.*platform:iOS Simulator, id:\([^,}]*\).*/\1/p' | head -n 1 | tr -d ' ')"
+          SIMULATOR_ID="$(printf '%s\n' "$DESTINATIONS" | sed -nE '/error:/d; s/.*platform:iOS Simulator, .*id:([[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}).*/\1/p' | awk 'NR == 1 {print}')"
 
           if [[ -z "$SIMULATOR_ID" ]]; then
             echo "No eligible iOS simulator destination found for scheme DiscoverJesus."
