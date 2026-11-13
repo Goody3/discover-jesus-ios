@@ -57,13 +57,51 @@ jobs:
         run: |
           set -euo pipefail
 
+          mkdir -p TestResults
           xcodebuild \
             -workspace DiscoverJesusPlatform.xcworkspace \
             -scheme DiscoverJesus \
             -destination "id=${SIMULATOR_ID}" \
             -configuration Debug \
+            -enableCodeCoverage YES \
+            -resultBundlePath TestResults/ios-coverage.xcresult \
             CODE_SIGNING_ALLOWED=NO \
             clean build test
+
+      - name: Summarize app line coverage
+        run: |
+          set -euo pipefail
+
+          xcrun xccov view --report --json TestResults/ios-coverage.xcresult > TestResults/ios-coverage.json
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path("TestResults/ios-coverage.json").read_text(encoding="utf-8"))
+          app_targets = [
+              target for target in report["targets"]
+              if Path(target["buildProductPath"]).name == "DiscoverJesus"
+          ]
+          if len(app_targets) != 1:
+              raise SystemExit(f"Expected one DiscoverJesus app target, found {len(app_targets)}.")
+
+          coverage = float(app_targets[0]["lineCoverage"])
+          summary = f"## iOS app test coverage\n\n- Line coverage: **{coverage:.2%}**\n"
+          print(summary)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+              output.write(summary)
+          PY
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-coverage
+          path: |
+            TestResults/ios-coverage.xcresult
+            TestResults/ios-coverage.json
+          if-no-files-found: ignore
 
   dependency-scan:
     name: Dependency vulnerability scan
