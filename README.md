@@ -15,12 +15,23 @@ Use the workspace and scheme below for local development and CI:
 From the repository root:
 
 ```bash
-xcodebuild -workspace DiscoverJesusPlatform.xcworkspace -scheme DiscoverJesus -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO clean build test
+mkdir -p TestResults
+xcodebuild \
+  -workspace DiscoverJesusPlatform.xcworkspace \
+  -scheme DiscoverJesus \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -enableCodeCoverage YES \
+  -resultBundlePath TestResults/ios-coverage.xcresult \
+  CODE_SIGNING_ALLOWED=NO \
+  clean build test
+xcrun xccov view --report --json TestResults/ios-coverage.xcresult
 ```
 
 Notes:
 - The active simulator can vary by machine and Xcode version.
 - `CODE_SIGNING_ALLOWED=NO` keeps CI and local simulator runs free of signing credentials.
+- The coverage report includes app and test targets; use the `DiscoverJesus`
+  app target's line coverage as the app baseline.
 
 ## Continuous integration
 
@@ -31,7 +42,13 @@ The pipeline runs on:
 - pushes to `dev` or `main`
 
 Pipeline checks:
+- Validate pinned backend HTTP fixtures and explicitly mapped navigation actions;
+  run negative contract probes before building. See
+  [contract fixture mappings, gaps, and refresh instructions](contracts/README.md).
 - Build the app and run tests on an automatically selected iOS simulator.
+- Collect app line coverage, include it in the workflow summary, and upload the
+  `.xcresult` report as an artifact. Coverage thresholds are not enforced until
+  the platform owner approves a target.
 - Fail on any build or test failure.
 - Scan dependencies for known vulnerabilities:
   - pull requests and pushes: OSV scanner recursive manifest scan

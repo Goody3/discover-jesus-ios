@@ -30,6 +30,9 @@ playground.xcworkspace
 # .swiftpm
 
 .build/
+TestResults/
+.venv-contracts/
+__pycache__/
 
 # CocoaPods
 #

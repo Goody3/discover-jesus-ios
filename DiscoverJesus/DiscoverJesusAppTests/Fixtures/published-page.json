@@ -1,0 +1,50 @@
+{
+  "id": "33333333-3333-3333-3333-333333333333",
+  "title": "Contract fixture",
+  "locale": "en-US",
+  "version": 1,
+  "sections": [
+    {
+      "type": "button",
+      "value": "Home by UUID",
+      "action": {
+        "type": "navigate",
+        "pageId": "11111111-1111-1111-1111-111111111111"
+      },
+      "source": { "legacyProps": { "target": "about" } }
+    },
+    { "type": "header", "value": "Welcome", "headerLevel": 2, "attribute": "heading" },
+    {
+      "type": "text",
+      "value": "Body",
+      "sourceComponentId": "44444444-4444-4444-4444-444444444444"
+    },
+    {
+      "type": "list",
+      "style": { "role": "list", "ordered": true },
+      "children": [{ "type": "text", "value": "One" }]
+    },
+    {
+      "type": "NavBar",
+      "style": { "role": "navigation" },
+      "children": [{ "type": "text", "value": "Home" }]
+    },
+    {
+      "type": "NBButton",
+      "value": "About by slug",
+      "source": { "legacyProps": { "target": "ABOUT" } }
+    },
+    {
+      "type": "BibleVerse",
+      "value": "Fixture verse",
+      "source": { "legacyProps": { "reference": "Example 1:1", "version": "fixture" } }
+    },
+    { "type": "image", "src": "https://example.com/image.png", "alt": "Fixture image" },
+    {
+      "type": "text",
+      "value": "Legacy button",
+      "source": { "legacyType": "Button", "legacyProps": { "text": "About", "target": "about" } }
+    },
+    { "type": "FutureWidget", "value": "Unknown components stay safe" }
+  ]
+}
