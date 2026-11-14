@@ -1,0 +1,2 @@
+openapi-schema-validator==0.6.3
+jsonschema==4.23.0

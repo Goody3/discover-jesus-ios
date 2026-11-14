@@ -42,6 +42,9 @@ The pipeline runs on:
 - pushes to `dev` or `main`
 
 Pipeline checks:
+- Validate pinned backend HTTP fixtures and explicitly mapped navigation actions;
+  run negative contract probes before building. See
+  [contract fixture mappings, gaps, and refresh instructions](contracts/README.md).
 - Build the app and run tests on an automatically selected iOS simulator.
 - Collect app line coverage, include it in the workflow summary, and upload the
   `.xcresult` report as an artifact. Coverage thresholds are not enforced until
