@@ -10,40 +10,66 @@
       "action": {
         "type": "navigate",
         "pageId": "11111111-1111-1111-1111-111111111111"
-      },
-      "source": { "legacyProps": { "target": "about" } }
+      }
     },
-    { "type": "header", "value": "Welcome", "headerLevel": 2, "attribute": "heading" },
+    {
+      "type": "text",
+      "role": "heading",
+      "value": "Welcome",
+      "headingLevel": 2
+    },
     {
       "type": "text",
       "value": "Body",
       "sourceComponentId": "44444444-4444-4444-4444-444444444444"
     },
     {
-      "type": "list",
-      "style": { "role": "list", "ordered": true },
+      "type": "stack",
+      "role": "list",
+      "label": "Overview",
+      "style": { "listStyle": "ordered" },
       "children": [{ "type": "text", "value": "One" }]
     },
     {
-      "type": "NavBar",
-      "style": { "role": "navigation" },
-      "children": [{ "type": "text", "value": "Home" }]
+      "type": "stack",
+      "role": "navigation",
+      "children": [
+        {
+          "type": "button",
+          "role": "navigation-item",
+          "value": "About",
+          "action": {
+            "type": "navigate",
+            "pageId": "22222222-2222-2222-2222-222222222222"
+          }
+        }
+      ]
     },
     {
-      "type": "NBButton",
-      "value": "About by slug",
-      "source": { "legacyProps": { "target": "ABOUT" } }
+      "type": "button",
+      "role": "navigation-item",
+      "value": "About",
+      "action": {
+        "type": "navigate",
+        "pageId": "22222222-2222-2222-2222-222222222222"
+      }
     },
-    {
-      "type": "BibleVerse",
-      "value": "Fixture verse",
-      "source": { "legacyProps": { "reference": "Example 1:1", "version": "fixture" } }
-    },
-    { "type": "image", "src": "https://example.com/image.png", "alt": "Fixture image" },
     {
       "type": "text",
-      "value": "Legacy button",
-      "source": { "legacyType": "Button", "legacyProps": { "text": "About", "target": "about" } }
+      "role": "scripture-reference",
+      "value": "Fixture verse",
+      "reference": "Example 1:1",
+      "version": "fixture"
+    },
+    {
+      "type": "image",
+      "src": "https://example.com/image.png",
+      "altText": "Fixture image"
+    },
+    {
+      "type": "text",
+      "role": "title",
+      "value": "Fixture title"
     },
     { "type": "FutureWidget", "value": "Unknown components stay safe" }
   ]

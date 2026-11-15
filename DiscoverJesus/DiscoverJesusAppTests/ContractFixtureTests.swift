@@ -25,6 +25,7 @@ final class ContractFixtureTests: XCTestCase {
 
     func testPublishedEnvelopeAndSupportedClientSections() throws {
         let parsed = try PageContentLogic.parsePagePayload(data: fixture("published-page"))
+        let pages = try JSONDecoder().decode([PageSummary].self, from: fixture("page-summaries"))
         let page = parsed.renderedPage
         XCTAssertEqual(page.id.uuidString.lowercased(), "33333333-3333-3333-3333-333333333333")
         XCTAssertEqual(page.title, "Contract fixture")
@@ -34,21 +35,21 @@ final class ContractFixtureTests: XCTestCase {
         XCTAssertEqual(page.sections.map {
             PageContentLogic.sectionKind(for: $0, hasNavBarSection: true)
         }, [
-            .button, .header, .text, .list, .navBar, .suppressedNBButton,
-            .bibleVerse, .image, .button, .unknown("FutureWidget")
+            .button, .header, .text, .list, .navBar, .suppressedNavigationItem,
+            .bibleVerse, .image, .text, .unknown("FutureWidget")
         ])
-        XCTAssertEqual(page.sections[1].headerLevel, 2)
-        XCTAssertEqual(page.sections[1].headerAttribute, "heading")
+        XCTAssertEqual(page.sections[1].headingLevel, 2)
         XCTAssertEqual(page.sections[2].id, "44444444-4444-4444-4444-444444444444")
-        XCTAssertEqual(page.sections[3].style?.ordered, true)
+        XCTAssertEqual(page.sections[3].label, "Overview")
+        XCTAssertEqual(page.sections[3].style?.listStyle, "ordered")
         XCTAssertEqual(page.sections[3].children?.first?.value, "One")
-        XCTAssertEqual(page.sections[6].source?.legacyProps?.reference, "Example 1:1")
+        XCTAssertEqual(page.sections[4].children?.first?.action?.pageId, pages[1].publicId)
+        XCTAssertEqual(page.sections[6].reference, "Example 1:1")
         XCTAssertEqual(page.sections[7].src, "https://example.com/image.png")
-        XCTAssertEqual(page.sections[7].alt, "Fixture image")
-        XCTAssertEqual(page.sections[8].source?.legacyType, "Button")
+        XCTAssertEqual(page.sections[7].altText, "Fixture image")
     }
 
-    func testTypedNavigationWinsAndLegacySlugRemainsSupported() throws {
+    func testNavigationResolutionUsesOnlyTypedPageIds() throws {
         let pages = try JSONDecoder().decode([PageSummary].self, from: fixture("page-summaries"))
         let page = try JSONDecoder().decode(LocalizedPageContent.self, from: fixture("published-page"))
         XCTAssertEqual(page.sections[0].action?.type, "navigate")
@@ -56,6 +57,17 @@ final class ContractFixtureTests: XCTestCase {
         XCTAssertEqual(PageContentLogic.targetPage(for: page.sections[0], allPages: pages)?.id, 1)
         XCTAssertEqual(PageContentLogic.targetPage(for: page.sections[5], allPages: pages)?.id, 2)
         XCTAssertNil(PageContentLogic.targetPage(for: page.sections[9], allPages: pages))
+
+        let legacySlugPayload = Data(
+            #"""
+            {"type":"button","source":{"legacyType":"NBButton","legacyProps":{"target":"ABOUT"}}}
+            """#.utf8
+        )
+        let legacySlugSection = try JSONDecoder().decode(
+            LocalizedPageSection.self,
+            from: legacySlugPayload
+        )
+        XCTAssertNil(PageContentLogic.targetPage(for: legacySlugSection, allPages: pages))
     }
 
     func testMissingRequiredEnvelopeAndSummaryFieldsFailDecoding() throws {
