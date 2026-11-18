@@ -20,14 +20,16 @@ struct LocalizedPageContent: Decodable {
 struct LocalizedPageSection: Decodable, Identifiable {
     let type: String
     let value: String?
-    let source: LocalizedPageSectionSource?
+    let role: String?
+    let label: String?
     let action: LocalizedPageSectionAction?
-    let headerLevel: Int?
-    let headerAttribute: String?
+    let headingLevel: Int?
+    let reference: String?
+    let version: String?
     let style: LocalizedPageSectionStyle?
-    let children: [LocalizedPageSectionChild]?
+    let children: [LocalizedPageSection]?
     let src: String?
-    let alt: String?
+    let altText: String?
 
     // Use source component id when present, otherwise fall back to a synthetic id.
     var id: String {
@@ -39,81 +41,39 @@ struct LocalizedPageSection: Decodable, Identifiable {
     private enum CodingKeys: String, CodingKey {
         case type
         case value
-        case source
+        case role
+        case label
         case action
         case sourceComponentId
-        case headerLevel
-        case level
-        case attribute
+        case headingLevel
+        case reference
+        case version
         case style
         case children
         case src
-        case alt
+        case altText
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         type = try container.decode(String.self, forKey: .type)
         value = try container.decodeIfPresent(String.self, forKey: .value)
-        source = try container.decodeIfPresent(LocalizedPageSectionSource.self, forKey: .source)
+        role = try container.decodeIfPresent(String.self, forKey: .role)
+        label = try container.decodeIfPresent(String.self, forKey: .label)
         action = try container.decodeIfPresent(LocalizedPageSectionAction.self, forKey: .action)
         sourceComponentId = try container.decodeIfPresent(String.self, forKey: .sourceComponentId)
-        headerLevel = try container.decodeIfPresent(Int.self, forKey: .headerLevel)
-            ?? container.decodeIfPresent(Int.self, forKey: .level)
-        headerAttribute = try container.decodeIfPresent(String.self, forKey: .attribute)
+        headingLevel = try container.decodeIfPresent(Int.self, forKey: .headingLevel)
+        reference = try container.decodeIfPresent(String.self, forKey: .reference)
+        version = try container.decodeIfPresent(String.self, forKey: .version)
         style = try container.decodeIfPresent(LocalizedPageSectionStyle.self, forKey: .style)
-        children = try container.decodeIfPresent([LocalizedPageSectionChild].self, forKey: .children)
+        children = try container.decodeIfPresent([LocalizedPageSection].self, forKey: .children)
         src = try container.decodeIfPresent(String.self, forKey: .src)
-        alt = try container.decodeIfPresent(String.self, forKey: .alt)
+        altText = try container.decodeIfPresent(String.self, forKey: .altText)
     }
 }
 
 struct LocalizedPageSectionStyle: Decodable {
-    let role: String?
-    let ordered: Bool?
-}
-
-struct LocalizedPageSectionChild: Decodable {
-    let type: String?
-    let value: String?
-}
-
-struct LocalizedPageSectionSource: Decodable {
-    let legacyType: String?
-    let legacyProps: LegacyProps?
-}
-
-struct LegacyProps: Decodable {
-    let text: String?
-    let target: String?
-    let headerLevel: Int?
-    let headerAttribute: String?
-    let reference: String?
-    let version: String?
-    let url: String?
-
-    private enum CodingKeys: String, CodingKey {
-        case text
-        case target
-        case headerLevel
-        case level
-        case attribute
-        case reference
-        case version
-        case url
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        text = try container.decodeIfPresent(String.self, forKey: .text)
-        target = try container.decodeIfPresent(String.self, forKey: .target)
-        headerLevel = try container.decodeIfPresent(Int.self, forKey: .headerLevel)
-            ?? container.decodeIfPresent(Int.self, forKey: .level)
-        headerAttribute = try container.decodeIfPresent(String.self, forKey: .attribute)
-        reference = try container.decodeIfPresent(String.self, forKey: .reference)
-        version = try container.decodeIfPresent(String.self, forKey: .version)
-        url = try container.decodeIfPresent(String.self, forKey: .url)
-    }
+    let listStyle: String?
 }
 
 struct LocalizedPageSectionAction: Decodable {
@@ -335,12 +295,12 @@ struct PageJSONView: View {
 
         if sectionKind == .navBar {
             navBarView(for: section)
-        } else if sectionKind == .suppressedNBButton {
+        } else if sectionKind == .suppressedNavigationItem {
             EmptyView()
         } else if sectionKind == .list {
             listView(for: section)
         } else if sectionKind == .button {
-            let buttonText = section.source?.legacyProps?.text ?? section.value ?? "Button"
+            let buttonText = section.value ?? "Button"
 
             if let destination = targetPage(for: section) {
                 NavigationLink {
@@ -380,7 +340,7 @@ struct PageJSONView: View {
 
     private func imageView(for section: LocalizedPageSection) -> some View {
         let url = imageURL(for: section)
-        let altText = (section.alt ?? section.source?.legacyProps?.text ?? "")
+        let altText = (section.altText ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -420,7 +380,7 @@ struct PageJSONView: View {
     }
 
     private func imageURL(for section: LocalizedPageSection) -> URL? {
-        let raw = section.src ?? section.source?.legacyProps?.url
+        let raw = section.src
         guard let raw else { return nil }
 
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -467,41 +427,13 @@ struct PageJSONView: View {
     }
 
     private func navBarItems(for section: LocalizedPageSection) -> [(label: String, destination: PageSummary?)] {
-        var availableNBButtons = (renderedPage?.sections ?? []).filter {
-            $0.source?.legacyType?.caseInsensitiveCompare("NBButton") == .orderedSame
-        }
-
-        var items: [(label: String, destination: PageSummary?)] = []
-
-        let orderedLabels = (section.children ?? [])
-            .compactMap { child -> String? in
-                let trimmed = (child.value ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? nil : trimmed
+        (section.children ?? [])
+            .filter { ($0.role ?? "").caseInsensitiveCompare("navigation-item") == .orderedSame }
+            .map { child in
+                let rawLabel = child.value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let label = rawLabel.isEmpty ? "Button" : rawLabel
+                return (label, targetPage(for: child))
             }
-
-        for label in orderedLabels {
-            if let index = availableNBButtons.firstIndex(where: {
-                buttonLabel(for: $0).caseInsensitiveCompare(label) == .orderedSame
-            }) {
-                let match = availableNBButtons.remove(at: index)
-                items.append((buttonLabel(for: match), targetPage(for: match)))
-            } else {
-                items.append((label, nil))
-            }
-        }
-
-        // Include any remaining NBButtons not listed in children.
-        for buttonSection in availableNBButtons {
-            items.append((buttonLabel(for: buttonSection), targetPage(for: buttonSection)))
-        }
-
-        return items
-    }
-
-    private func buttonLabel(for section: LocalizedPageSection) -> String {
-        let raw = section.source?.legacyProps?.text ?? section.value ?? "Button"
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Button" : trimmed
     }
 
     private func bibleVerseView(for section: LocalizedPageSection) -> some View {
@@ -526,8 +458,8 @@ struct PageJSONView: View {
     }
 
     private func verseReferenceText(for section: LocalizedPageSection) -> String? {
-        let reference = section.source?.legacyProps?.reference?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let version = section.source?.legacyProps?.version?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let reference = section.reference?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let version = section.version?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard let reference, !reference.isEmpty else {
             return nil
@@ -543,13 +475,13 @@ struct PageJSONView: View {
     @ViewBuilder
     private func listView(for section: LocalizedPageSection) -> some View {
         let items = (section.children ?? [])
-            .filter { ($0.type ?? "text").lowercased() == "text" }
+            .filter { $0.type.lowercased() == "text" }
             .map { ($0.value ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        let ordered = section.style?.ordered ?? isLegacyOrderedList(section)
+        let ordered = section.style?.listStyle == "ordered"
 
         VStack(alignment: .leading, spacing: 6) {
-            if let title = section.source?.legacyProps?.text?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+            if let title = section.label?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
                 Text(title)
                     .font(.headline)
             }
@@ -573,41 +505,19 @@ struct PageJSONView: View {
     }
 
     private func sectionDisplayText(_ section: LocalizedPageSection, fallback: String) -> String {
-        let raw = section.source?.legacyProps?.text ?? section.value
-        let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let trimmed = section.value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? fallback : trimmed
     }
 
     private func headerStyle(for section: LocalizedPageSection) -> (font: Font, weight: Font.Weight) {
-        let rawAttribute = section.headerAttribute ?? section.source?.legacyProps?.headerAttribute
-        let attribute = rawAttribute?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .uppercased()
-
-        switch attribute {
-        case "H1":
+        switch section.headingLevel {
+        case 1:
             return (.largeTitle, .bold)
-        case "H3":
+        case 3:
             return (.title3, .semibold)
-        case "H2":
-            return (.title2, .semibold)
         default:
-            let level = section.headerLevel ?? section.source?.legacyProps?.headerLevel
-            switch level {
-            case 1:
-                return (.largeTitle, .bold)
-            case 3:
-                return (.title3, .semibold)
-            default:
-                return (.title2, .semibold)
-            }
+            return (.title2, .semibold)
         }
-    }
-
-    private func isLegacyOrderedList(_ section: LocalizedPageSection) -> Bool {
-        let raw = section.source?.legacyProps?.headerAttribute ?? section.headerAttribute
-        let normalized = raw?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return normalized == "ol"
     }
 
     private func targetPage(for section: LocalizedPageSection) -> PageSummary? {

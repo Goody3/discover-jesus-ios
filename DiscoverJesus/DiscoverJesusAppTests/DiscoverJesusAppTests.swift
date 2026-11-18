@@ -9,26 +9,51 @@ import XCTest
 @testable import DiscoverJesus
 
 final class DiscoverJesusAppTests: XCTestCase {
-    func testDecodingSupportedComponentTypesAndLegacyFallback() throws {
+    func testDecodingCurrentComponentRolesAndUnknownComponent() throws {
         let payload = fixtureData(
             sections: [
-                section(type: "Button", value: "Start", actionPageId: destinationA.publicId.uuidString),
-                section(type: "Header", value: "Welcome", level: 1),
-                section(type: "Text", value: "Body copy"),
-                section(type: "List", children: [["type": "Text", "value": "One"]]),
-                section(type: "NavBar", children: [["type": "Text", "value": "Home"]]),
-                section(type: "NBButton", value: "Home", target: "home"),
-                section(type: "BibleVerse", value: "For God so loved...", reference: "John 3:16", version: "niv"),
-                section(type: "Image", src: "example.com/image.png", alt: "Image alt"),
-                section(type: "Text", value: "Legacy button", legacyType: "Button")
+                section(type: "button", value: "Start", actionPageId: destinationA.publicId.uuidString),
+                section(type: "text", value: "Welcome", role: "heading", headingLevel: 1),
+                section(type: "text", value: "Body copy"),
+                section(
+                    type: "stack",
+                    role: "list",
+                    label: "Items",
+                    listStyle: "unordered",
+                    children: [["type": "text", "value": "One"]]
+                ),
+                section(
+                    type: "stack",
+                    role: "navigation",
+                    children: [[
+                        "type": "button",
+                        "role": "navigation-item",
+                        "value": "Home",
+                        "action": [
+                            "type": "navigate",
+                            "pageId": destinationA.publicId.uuidString
+                        ]
+                    ]]
+                ),
+                section(
+                    type: "text",
+                    value: "For God so loved...",
+                    role: "scripture-reference",
+                    reference: "John 3:16",
+                    version: "niv"
+                ),
+                section(type: "image", src: "https://example.org/image.png", altText: "Image alt"),
+                section(type: "MysteryType", value: "Unknown")
             ]
         )
 
         let content = try JSONDecoder().decode(LocalizedPageContent.self, from: payload)
 
-        XCTAssertEqual(content.sections.count, 9)
-        XCTAssertEqual(content.sections[8].source?.legacyType, "Button")
-        XCTAssertEqual(content.sections[4].type, "NavBar")
+        XCTAssertEqual(content.sections.count, 8)
+        XCTAssertEqual(content.sections[1].role, "heading")
+        XCTAssertEqual(content.sections[4].children?.first?.role, "navigation-item")
+        XCTAssertEqual(content.sections[5].reference, "John 3:16")
+        XCTAssertEqual(content.sections[6].altText, "Image alt")
     }
 
     func testDecodingMalformedPayloadThrows() {
@@ -43,15 +68,15 @@ final class DiscoverJesusAppTests: XCTestCase {
 
     func testRendererClassificationCoversSupportedTypesAndUnknownFallback() throws {
         let sections = try decodeSections([
-            section(type: "Button", value: "Tap"),
-            section(type: "Header", value: "H"),
-            section(type: "Text", value: "T"),
-            section(type: "List", children: [["type": "Text", "value": "One"]]),
-            section(type: "NavBar", children: [["type": "Text", "value": "Home"]]),
-            section(type: "NBButton", value: "Home"),
-            section(type: "BibleVerse", value: "Verse"),
-            section(type: "Image", src: "example.com/image.png"),
-            section(type: "Text", value: "Legacy", legacyType: "Button"),
+            section(type: "button", value: "Tap"),
+            section(type: "text", value: "H", role: "heading", headingLevel: 2),
+            section(type: "text", value: "T"),
+            section(type: "stack", role: "list"),
+            section(type: "stack", role: "navigation"),
+            section(type: "button", role: "navigation-item"),
+            section(type: "text", value: "Verse", role: "scripture-reference"),
+            section(type: "image", src: "https://example.org/image.png"),
+            section(type: "Button", value: "Legacy type"),
             section(type: "MysteryType", value: "???")
         ])
 
@@ -60,21 +85,36 @@ final class DiscoverJesusAppTests: XCTestCase {
         XCTAssertEqual(PageContentLogic.sectionKind(for: sections[2], hasNavBarSection: false), .text)
         XCTAssertEqual(PageContentLogic.sectionKind(for: sections[3], hasNavBarSection: false), .list)
         XCTAssertEqual(PageContentLogic.sectionKind(for: sections[4], hasNavBarSection: false), .navBar)
-        XCTAssertEqual(PageContentLogic.sectionKind(for: sections[5], hasNavBarSection: true), .suppressedNBButton)
+        XCTAssertEqual(
+            PageContentLogic.sectionKind(for: sections[5], hasNavBarSection: true),
+            .suppressedNavigationItem
+        )
         XCTAssertEqual(PageContentLogic.sectionKind(for: sections[6], hasNavBarSection: false), .bibleVerse)
         XCTAssertEqual(PageContentLogic.sectionKind(for: sections[7], hasNavBarSection: false), .image)
-        XCTAssertEqual(PageContentLogic.sectionKind(for: sections[8], hasNavBarSection: false), .button)
+        XCTAssertEqual(PageContentLogic.sectionKind(for: sections[8], hasNavBarSection: false), .unknown("Button"))
         XCTAssertEqual(PageContentLogic.sectionKind(for: sections[9], hasNavBarSection: false), .unknown("MysteryType"))
     }
 
-    func testNavigationResolutionPrefersPageIdThenSlugFallbackAndMissingTarget() throws {
-        let byIdSection = try decodeSection(section(type: "Button", value: "By ID", actionPageId: destinationA.publicId.uuidString, target: "other"))
-        let bySlugSection = try decodeSection(section(type: "Button", value: "By Slug", target: destinationB.slug.uppercased()))
-        let missingSection = try decodeSection(section(type: "Button", value: "Missing", target: "not-found"))
+    func testNavigationResolutionRequiresUUIDPageId() throws {
+        let byIdSection = try decodeSection(
+            section(type: "button", value: "By ID", actionPageId: destinationA.publicId.uuidString)
+        )
+        let missingSection = try decodeSection(section(type: "button", value: "Missing"))
 
         XCTAssertEqual(PageContentLogic.targetPage(for: byIdSection, allPages: pages)?.id, destinationA.id)
-        XCTAssertEqual(PageContentLogic.targetPage(for: bySlugSection, allPages: pages)?.id, destinationB.id)
         XCTAssertNil(PageContentLogic.targetPage(for: missingSection, allPages: pages))
+    }
+
+    func testLegacyMetadataDoesNotOverrideCurrentTypeOrResolveSlug() throws {
+        let payload = Data(
+            #"""
+            {"type":"text","value":"Current text","source":{"legacyType":"Button","legacyProps":{"target":"about"}}}
+            """#.utf8
+        )
+        let section = try JSONDecoder().decode(LocalizedPageSection.self, from: payload)
+
+        XCTAssertEqual(PageContentLogic.sectionKind(for: section, hasNavBarSection: false), .text)
+        XCTAssertNil(PageContentLogic.targetPage(for: section, allPages: pages))
     }
 
     func testErrorPathsFor4xx5xxMalformedAndEmptyPayloads() async {
@@ -150,35 +190,30 @@ final class DiscoverJesusAppTests: XCTestCase {
         type: String,
         value: String? = nil,
         actionPageId: String? = nil,
-        legacyType: String? = nil,
-        target: String? = nil,
-        level: Int? = nil,
+        role: String? = nil,
+        label: String? = nil,
+        headingLevel: Int? = nil,
         reference: String? = nil,
         version: String? = nil,
         src: String? = nil,
-        alt: String? = nil,
+        altText: String? = nil,
+        listStyle: String? = nil,
         children: [[String: Any]]? = nil
     ) -> [String: Any] {
         var dictionary: [String: Any] = ["type": type]
         if let value { dictionary["value"] = value }
-        if let level { dictionary["level"] = level }
+        if let role { dictionary["role"] = role }
+        if let label { dictionary["label"] = label }
+        if let headingLevel { dictionary["headingLevel"] = headingLevel }
+        if let reference { dictionary["reference"] = reference }
+        if let version { dictionary["version"] = version }
         if let src { dictionary["src"] = src }
-        if let alt { dictionary["alt"] = alt }
+        if let altText { dictionary["altText"] = altText }
         if let children { dictionary["children"] = children }
+        if let listStyle { dictionary["style"] = ["listStyle": listStyle] }
 
         if let actionPageId {
             dictionary["action"] = ["type": "navigate", "pageId": actionPageId]
-        }
-
-        var legacyProps: [String: Any] = [:]
-        if let target { legacyProps["target"] = target }
-        if let reference { legacyProps["reference"] = reference }
-        if let version { legacyProps["version"] = version }
-        if !legacyProps.isEmpty || legacyType != nil {
-            dictionary["source"] = [
-                "legacyType": legacyType as Any,
-                "legacyProps": legacyProps
-            ]
         }
 
         return dictionary

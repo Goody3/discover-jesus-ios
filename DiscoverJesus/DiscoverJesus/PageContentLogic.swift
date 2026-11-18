@@ -2,7 +2,7 @@ import Foundation
 
 enum RenderSectionKind: Equatable {
     case navBar
-    case suppressedNBButton
+    case suppressedNavigationItem
     case list
     case button
     case header
@@ -26,39 +26,38 @@ struct PageContentLoadResult {
 
 struct PageContentLogic {
     static func sectionKind(for section: LocalizedPageSection, hasNavBarSection: Bool) -> RenderSectionKind {
-        let normalizedType = section.type.lowercased()
-        let normalizedLegacyType = section.source?.legacyType?.lowercased()
-        let effectiveType = normalizedLegacyType ?? normalizedType
+        let type = section.type
+        let role = section.role
 
-        if section.style?.role?.caseInsensitiveCompare("navigation") == .orderedSame || effectiveType == "navbar" {
+        if role == "navigation" {
             return .navBar
         }
 
-        if effectiveType == "nbbutton" && hasNavBarSection {
-            return .suppressedNBButton
+        if role == "navigation-item" && hasNavBarSection {
+            return .suppressedNavigationItem
         }
 
-        if section.style?.role?.caseInsensitiveCompare("list") == .orderedSame || effectiveType == "list" {
+        if role == "list" {
             return .list
         }
 
-        if effectiveType == "button" || effectiveType == "nbbutton" {
-            return .button
-        }
-
-        if effectiveType == "header" {
+        if role == "heading" {
             return .header
         }
 
-        if effectiveType == "bibleverse" {
+        if role == "scripture-reference" {
             return .bibleVerse
         }
 
-        if effectiveType == "media" || normalizedType == "image" || effectiveType == "image" {
+        if type == "button" {
+            return .button
+        }
+
+        if type == "image" {
             return .image
         }
 
-        if effectiveType == "text" {
+        if type == "text" {
             return .text
         }
 
@@ -66,17 +65,11 @@ struct PageContentLogic {
     }
 
     static func targetPage(for section: LocalizedPageSection, allPages: [PageSummary]) -> PageSummary? {
-        if let pageId = section.action?.pageId,
-           let byId = allPages.first(where: { $0.publicId == pageId }) {
-            return byId
+        guard section.action?.type == "navigate",
+              let pageId = section.action?.pageId else {
+            return nil
         }
-
-        if let targetSlug = section.source?.legacyProps?.target,
-           let bySlug = allPages.first(where: { $0.slug.caseInsensitiveCompare(targetSlug) == .orderedSame }) {
-            return bySlug
-        }
-
-        return nil
+        return allPages.first(where: { $0.publicId == pageId })
     }
 
     static func parsePagePayload(data: Data) throws -> ParsedPagePayload {

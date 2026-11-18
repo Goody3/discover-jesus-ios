@@ -26,11 +26,12 @@ backend payload implements the shared schemas.
   arrays, component fields, legacy metadata, or navigation internals. The
   app's section-array and per-section `type` requirements are client assumptions,
   tested separately, not guarantees derived from this HTTP contract.
-- The fixture covers the app's button, header, text, list, navigation bar,
-  suppressed NBButton, BibleVerse, image, legacy `source.legacyType` override,
-  and unknown-component classification. These are client compatibility examples.
-  They are not validated against the shared component enum: that would reject
-  supported legacy types and conflate representations.
+- The fixture covers the owner-approved current shapes: button, role-based
+  heading and scripture reference, text, list and navigation stacks, nested
+  UUID navigation items, image, and unknown-component classification. These
+  are synthetic examples of migrated payloads, not captured backend responses.
+  The backend OpenAPI still leaves `sections` opaque, so the fixture does not
+  establish backend conformance for these dynamic-content fields.
 - `sourceComponentId`, `headerLevel`, `attribute`, styling roles, children,
   image fields, and legacy props have Swift regression assertions but no
   authoritative section-schema mapping. Nested rendering and arbitrary dynamic
@@ -38,8 +39,9 @@ backend payload implements the shared schemas.
 - Missing `navigate.pageId` fails the selected shared action schema, while the
   existing Swift decoder accepts it as optional. A dedicated test documents that
   gap; the loader/renderer is not made stricter by this story.
-- UUID navigation wins over legacy slug props; case-insensitive slug fallback
-  remains. Existing tests remain unchanged. No fallback removal is authorized.
+- Navigation resolves only through a typed UUID action. The case-insensitive
+  legacy slug fallback has been removed; tests verify that legacy `target`
+  metadata is ignored.
 - The app consumes neither shared `content.blocks` nor the legacy
   `GET /api/pages/{slug}` detail response; neither is silently mapped here.
 - Fixtures cannot prove live backend response conformance, destination

@@ -128,7 +128,7 @@ def check():
         "legacy target is not a typed action destination",
     )
     print("Validated navigation projections and 17 negative contract probes")
-    print("Section/legacy shapes remain client compatibility examples, not schema guarantees.")
+    print("Dynamic section examples are synthetic; backend OpenAPI leaves them opaque.")
 
 
 parser = argparse.ArgumentParser(description="Refresh or validate STORY-016 contract fixtures.")
