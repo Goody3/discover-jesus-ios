@@ -566,6 +566,51 @@
         }
       }
     },
+    "/api/content/pages": {
+      "get": {
+        "tags": [
+          "Page content"
+        ],
+        "summary": "List published pages for a locale",
+        "description": "Returns reader-facing metadata for pages with a published revision in the requested locale.",
+        "operationId": "GetPublishedPages",
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublishedPageSummary"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/content/pages/{pageId}": {
       "get": {
         "tags": [
@@ -920,20 +965,21 @@
         }
       }
     },
-    "/api/pages/{slug}": {
+    "/api/pages/by-public-id/{pageId}": {
       "get": {
         "tags": [
           "Pages"
         ],
-        "summary": "Get a page and its components, bindings, and actions",
-        "operationId": "GetPage",
+        "summary": "Get a management page by public UUID, including unpublished pages",
+        "operationId": "GetPageByPublicId",
         "parameters": [
           {
-            "name": "slug",
+            "name": "pageId",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -1900,6 +1946,27 @@
           },
           "isPublished": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PublishedPageSummary": {
+        "required": [
+          "publicId",
+          "slug",
+          "title"
+        ],
+        "type": "object",
+        "properties": {
+          "publicId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
           }
         },
         "additionalProperties": false

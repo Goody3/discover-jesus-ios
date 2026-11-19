@@ -2,11 +2,24 @@ import SwiftUI
 import Combine
 
 struct PageSummary: Decodable, Identifiable, Hashable {
-    let id: Int
     let publicId: UUID
     let slug: String
     let title: String
-    let isPublished: Bool
+
+    var id: UUID { publicId }
+}
+
+private enum ReaderAPI {
+    static let baseURL = URL(string: "http://localhost:5187/api/content/pages")!
+    static let locale = URLQueryItem(name: "locale", value: "en-US")
+
+    static func pagesURL() -> URL {
+        baseURL.appending(queryItems: [locale])
+    }
+
+    static func pageURL(_ id: UUID) -> URL {
+        baseURL.appending(path: id.uuidString).appending(queryItems: [locale])
+    }
 }
 
 struct LocalizedPageContent: Decodable {
@@ -87,14 +100,12 @@ final class PagesViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
 
-    private let endpoint = URL(string: "http://localhost:5187/api/pages")!
-
     func loadPages() async {
         isLoading = true
         errorMessage = nil
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: endpoint)
+            let (data, response) = try await URLSession.shared.data(from: ReaderAPI.pagesURL())
             guard let httpResponse = response as? HTTPURLResponse,
                   200 ..< 300 ~= httpResponse.statusCode else {
                 errorMessage = "Backend returned an unexpected response."
@@ -136,11 +147,6 @@ struct ContentView: View {
                                 Text("/\(page.slug)")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
-                                if !page.isPublished {
-                                    Text("Draft")
-                                        .font(.caption)
-                                        .foregroundStyle(.orange)
-                                }
                             }
                         }
                     }
@@ -177,10 +183,8 @@ struct PageJSONView: View {
     @State private var errorMessage: String?
     @State private var failedRequestURL: String?
 
-    private let locale = "en-US"
-
     private var endpoint: URL {
-        URL(string: "http://localhost:5187/api/content/pages/\(page.publicId.uuidString)?locale=\(locale)")!
+        ReaderAPI.pageURL(page.publicId)
     }
 
     var body: some View {

@@ -78,7 +78,7 @@ def check():
     pages = json.loads((FIXTURES / "page-summaries.json").read_text())
     page = json.loads((FIXTURES / "published-page.json").read_text())
     fixtures = [
-        ("/api/pages", "GetPages", pages),
+        ("/api/content/pages", "GetPublishedPages", pages),
         ("/api/content/pages/{pageId}", "GetPageContent", page),
     ]
     validators = []
@@ -115,11 +115,13 @@ def check():
     for field, value in (("id", "invalid-uuid"), ("version", "one"), ("title", None)):
         invalid = {**page, field: value}
         rejects(validators[1], invalid, f"malformed page {field}")
-    for field in ("id", "publicId", "slug", "title", "isPublished"):
+    for field in ("publicId", "slug", "title"):
         invalid = copy.deepcopy(pages)
         del invalid[0][field]
         rejects(validators[0], invalid, f"missing summary {field}")
     rejects(validators[0], [{**pages[0], "publicId": "invalid-uuid"}], "malformed summary UUID")
+    for field, value in (("id", 1), ("isPublished", True)):
+        rejects(validators[0], [{**pages[0], field: value}], f"management-only summary field {field}")
     rejects(action_validator, {"type": "navigate"}, "missing navigation UUID")
     rejects(action_validator, {"type": "navigate", "pageId": "invalid-uuid"}, "malformed navigation UUID")
     rejects(
