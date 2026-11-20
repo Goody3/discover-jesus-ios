@@ -154,21 +154,17 @@ final class DiscoverJesusAppTests: XCTestCase {
 
     private var destinationA: PageSummary {
         PageSummary(
-            id: 1,
             publicId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             slug: "home",
-            title: "Home",
-            isPublished: true
+            title: "Home"
         )
     }
 
     private var destinationB: PageSummary {
         PageSummary(
-            id: 2,
             publicId: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
             slug: "about",
-            title: "About",
-            isPublished: true
+            title: "About"
         )
     }
 

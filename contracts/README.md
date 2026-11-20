@@ -9,7 +9,7 @@ test examples, not captured backend responses or personal data.
 
 | Fixture / projection | Source contract | App consumer | Validation |
 | --- | --- | --- | --- |
-| [page-summaries.json](../DiscoverJesus/DiscoverJesusAppTests/Fixtures/page-summaries.json) | Backend OpenAPI `GET /api/pages`, `GetPages`, 200 JSON array of `PageSummary` | `PagesViewModel`, `PageSummary` | OpenAPI 3.0 response schema, required fields and UUID format; Swift decoding |
+| [page-summaries.json](../DiscoverJesus/DiscoverJesusAppTests/Fixtures/page-summaries.json) | Backend OpenAPI `GET /api/content/pages?locale=en-US`, `GetPublishedPages`, 200 JSON array of `PublishedPageSummary` | `PagesViewModel`, `PageSummary` | OpenAPI 3.0 response schema, required fields and UUID format; Swift decoding |
 | [published-page.json](../DiscoverJesus/DiscoverJesusAppTests/Fixtures/published-page.json) | Backend OpenAPI `GET /api/content/pages/{pageId}?locale=...`, `GetPageContent`, 200 JSON `PageContentResponse` | `PageContentLoader`, `LocalizedPageContent` | OpenAPI envelope, required fields and UUID format; Swift decoding and classification |
 | Each top-level `sections[*].action` in the published-page fixture | Shared actions schema `#/definitions/action` | `LocalizedPageSectionAction`, UUID navigation | Explicitly selected `navigate` action projection; schema validation plus destination UUID lookup in the summary fixture; Swift UUID preference |
 

@@ -15,12 +15,10 @@ final class ContractFixtureTests: XCTestCase {
     func testPageSummariesDecodeBackendContractFields() throws {
         let pages = try JSONDecoder().decode([PageSummary].self, from: fixture("page-summaries"))
         XCTAssertEqual(pages.count, 2)
-        XCTAssertEqual(pages[0].id, 1)
+        XCTAssertEqual(pages[0].id, pages[0].publicId)
         XCTAssertEqual(pages[0].publicId.uuidString.lowercased(), "11111111-1111-1111-1111-111111111111")
         XCTAssertEqual(pages[0].slug, "home")
         XCTAssertEqual(pages[0].title, "Home")
-        XCTAssertTrue(pages[0].isPublished)
-        XCTAssertFalse(pages[1].isPublished)
     }
 
     func testPublishedEnvelopeAndSupportedClientSections() throws {
@@ -54,8 +52,8 @@ final class ContractFixtureTests: XCTestCase {
         let page = try JSONDecoder().decode(LocalizedPageContent.self, from: fixture("published-page"))
         XCTAssertEqual(page.sections[0].action?.type, "navigate")
         XCTAssertEqual(page.sections[0].action?.pageId, pages[0].publicId)
-        XCTAssertEqual(PageContentLogic.targetPage(for: page.sections[0], allPages: pages)?.id, 1)
-        XCTAssertEqual(PageContentLogic.targetPage(for: page.sections[5], allPages: pages)?.id, 2)
+        XCTAssertEqual(PageContentLogic.targetPage(for: page.sections[0], allPages: pages)?.id, pages[0].publicId)
+        XCTAssertEqual(PageContentLogic.targetPage(for: page.sections[5], allPages: pages)?.id, pages[1].publicId)
         XCTAssertNil(PageContentLogic.targetPage(for: page.sections[9], allPages: pages))
 
         let legacySlugPayload = Data(
@@ -79,7 +77,7 @@ final class ContractFixtureTests: XCTestCase {
             XCTAssertThrowsError(try JSONDecoder().decode(LocalizedPageContent.self, from: data), field)
         }
         let pages = try XCTUnwrap(JSONSerialization.jsonObject(with: fixture("page-summaries")) as? [[String: Any]])
-        for field in ["id", "publicId", "slug", "title", "isPublished"] {
+        for field in ["publicId", "slug", "title"] {
             var invalid = pages[0]
             invalid.removeValue(forKey: field)
             let data = try JSONSerialization.data(withJSONObject: [invalid])
